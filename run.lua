@@ -106,6 +106,7 @@ local function getZipArchive(zipFileName)
 	end
 	zipArchive = Zip(zipFileName)
 	zipArchivesForFileName[zipFileName] = zipArchive
+print('zipArchive', zipArchive)
 	return zipArchive
 end
 
@@ -127,15 +128,14 @@ for t=startMin,endMin,60 do
 	local zipArchive = getZipArchive(zipFileName)
 	local fileNameInArchive = os.date('SWX_DRAP20_C_SWPC_%Y%m%d%H%M00_GLOBAL.png', t)
 	local zipPath = zipArchive:file(fileNameInArchive)
-print('zipArchive', zipArchive)	
-print('zipPath', zipPath)	
+print('zipPath', zipPath)
 	if not zipPath:exists() then
 		print("failed to find filename "..fileNameInArchive)
 		failCount = failCount + 1
 		fs:insert(fs:last())	-- insert last frame anyways if it's there so there's no skips
 	else
 		-- extract to tmp
-		local dstfn = count..'.png' 
+		local dstfn = count..'.png'
 		file('tmp/'..dstfn):write((zipPath:read()))
 		fs:insert(dstfn)	-- relative to the tmp dir
 	end

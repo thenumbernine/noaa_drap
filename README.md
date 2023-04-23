@@ -1,5 +1,9 @@
 ## Make-Your-Own-DRAP-Video
 
+Note to self:
+- add module dependencies.
+- get the downloader, extractor, re-compressor working (or alternatively make some tgz lua class wrappers like I did the zip ones)
+
 I kept missing good flare DRAP movies and kept wondering how to find them in the archives.
 Took me a while to realize there was no movie archives.  It's just a bunch of PNG files. 
 Example:

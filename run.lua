@@ -40,10 +40,6 @@ local function roundDay(t)
 	return os.time(d)
 end
 
-local function urlWithoutExtForTime(t)
-	return os.date('https://www.ngdc.noaa.gov/stp/drap/data/%Y/%m/SWX_DRAP20_C_SWPC_%Y%m%d', t)
-end
-
 local function printAndReturn(...)
 	print(...)
 	return ...
@@ -67,41 +63,64 @@ local cachedir = 'cache'
 file(cachedir):mkdir()
 assert(file(cachedir):isdir())
 
-local function tryToDownload(url)
-	local fn = url:match('[^/]*$')
-	--print(url, fn)
-	local cacheFn = cachedir..'/'..fn
-	if not file(cacheFn):exists() then
-		exec('cd "'..cachedir..'" && wget '..url)
+--[[ this is also in christopheremoore.net/solarsystem/jpl-ssd-smallbody/getdata.lua
+-- but I don't have it built for luajit so...
+local https = require 'ssl.https'
+local ltn12 = require 'ltn12'
+local function downloadAndCache(filename, url, dontReadIfNotNecessary)
+	if file(filename):exists() then
+		--print('already have file '..filename..', so skipping the download and using the cached version')
+		if dontReadIfNotNecessary then
+			return true
+		end
+		return file(filename):read()
 	end
-	return cacheFn
+	--print('downloading url '..url..' ...')
+	local data = table()
+	local result = table.pack(https.request{
+		url = url,
+		sink = ltn12.sink.table(data),
+		protocol = 'tlsv1',
+	})
+	if not result[1] then return result:unpack() end
+	data = data:concat()
+	--print('writing file '..filename..' with this much data: '..#data)
+	file(filename):write(data)
+	return data
 end
+--]]
+-- [[
+local function downloadAndCache(filename, url, dontReturnData)
+	assert(dontReturnData, "")
+	assert(exec('wget "'..url..'" -O "'..filename..'"'))
+	return dontReturnData and file(filename):read() or true
+end
+--]]
 
 -- TODO download either, then extract-and-recompress it ... in cachedir/%Y%m%d.zip or .something
-local function download(t)
-	error("still gotta do unzipping")
-	local urlWithoutExt = urlWithoutExtForTime(t)
-	local fn = tryToDownload(urlWithoutExt..'.zip')
-	if fn then
-		-- TODO convert .zip to .7z?  or extract both?
-		return fn
-	else
-		fn = tryToDownload(urlWithoutExt..'.tar.gz')
-		if fn then
-			return fn
-		else
-			error("couldn't find")
-		end
+local function downloadDRAPArchive(t)
+	local Y = os.date('%Y', t)
+	local m = os.date('%m', t)
+	local d = os.date('%d', t)
+	local ts = Y..m..d
+	local filenameWithoutExt = 'SWX_DRAP20_C_SWPC_'..ts
+	local urlWithoutExt = 'https://www.ngdc.noaa.gov/stp/drap/data/'..Y..'/'..m..'/' .. filenameWithoutExt 
+	local found = downloadAndCache('cache/'..ts..'.zip', urlWithoutExt..'.zip', true)
+	if not found then
+		error("this is where I should download the .tar.gz version but I'm too lazy")
 	end
+	-- now that it's found ... re-zip in the proper place?  or just use as-is with its weird archive-whatever path?
+	return true
 end
 
 -- TODO instead of a table, just save the last one, since we are iterating through in order
 local zipArchivesForFileName = {}
-local function getZipArchive(zipFileName)
+local function getZipArchive(t)
+	local zipFileName = cachedir..'/'..os.date('%Y%m%d', t)..'.zip'
 	local zipArchive = zipArchivesForFileName[zipFileName]
 	if zipArchive then return zipArchive end
 	if not file(zipFileName):exists() then
-		download(t)
+		assert(downloadDRAPArchive(t))
 		assert(file(zipFileName):exists())
 	end
 	zipArchive = Zip(zipFileName)
@@ -124,12 +143,16 @@ local failCount = 0
 local count = 0
 for t=startMin,endMin,60 do
 	count = count + 1
-	local zipFileName = cachedir..'/'..os.date('%Y%m%d', t)..'.zip'
-	local zipArchive = getZipArchive(zipFileName)
+	local zipArchive = getZipArchive(t)
 	local fileNameInArchive = os.date('SWX_DRAP20_C_SWPC_%Y%m%d%H%M00_GLOBAL.png', t)
-	local zipPath = zipArchive:file(fileNameInArchive)
-print('zipPath', zipPath)
-	if not zipPath:exists() then
+	local zipPath
+	for _,prefix in ipairs{'', 'archive_images/'} do
+		zipPath = zipArchive:file(prefix..fileNameInArchive)
+print('trying zipPath', zipPath)
+		if zipPath:exists() then break end
+		zipPath = nil
+	end
+	if not zipPath then
 		print("failed to find filename "..fileNameInArchive)
 		failCount = failCount + 1
 		fs:insert(fs:last())	-- insert last frame anyways if it's there so there's no skips
@@ -151,3 +174,4 @@ end):append{
 exec('ffmpeg -r 24 -y -f concat -i tmp/input.txt out.mp4')
 -- ok at 24 fps , 1 frame per second, 1 day becomes 1 minute
 -- and our 1 min vid is about 1.7 mb
+-- TODO better output filename?

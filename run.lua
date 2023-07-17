@@ -1,5 +1,5 @@
 #!/usr/bin/env luajit
-local file = require 'ext.file'
+local path = require 'ext.path'
 local table = require 'ext.table'
 local Zip = require 'zip'
 
@@ -59,21 +59,21 @@ local startDay = roundDay(startMin)
 local endDay = roundDay(endMin)
 
 local cachedir = 'cache'
--- assert(file(cachedir):mkdir()) ?
-file(cachedir):mkdir()
-assert(file(cachedir):isdir())
+-- assert(path(cachedir):mkdir()) ?
+path(cachedir):mkdir()
+assert(path(cachedir):isdir())
 
 --[[ this is also in christopheremoore.net/solarsystem/jpl-ssd-smallbody/getdata.lua
 -- but I don't have it built for luajit so...
 local https = require 'ssl.https'
 local ltn12 = require 'ltn12'
 local function downloadAndCache(filename, url, dontReadIfNotNecessary)
-	if file(filename):exists() then
+	if path(filename):exists() then
 		--print('already have file '..filename..', so skipping the download and using the cached version')
 		if dontReadIfNotNecessary then
 			return true
 		end
-		return file(filename):read()
+		return path(filename):read()
 	end
 	--print('downloading url '..url..' ...')
 	local data = table()
@@ -85,7 +85,7 @@ local function downloadAndCache(filename, url, dontReadIfNotNecessary)
 	if not result[1] then return result:unpack() end
 	data = data:concat()
 	--print('writing file '..filename..' with this much data: '..#data)
-	file(filename):write(data)
+	path(filename):write(data)
 	return data
 end
 --]]
@@ -93,7 +93,7 @@ end
 local function downloadAndCache(filename, url, dontReturnData)
 	assert(dontReturnData, "")
 	assert(exec('wget "'..url..'" -O "'..filename..'"'))
-	return dontReturnData and file(filename):read() or true
+	return dontReturnData and path(filename):read() or true
 end
 --]]
 
@@ -119,9 +119,9 @@ local function getZipArchive(t)
 	local zipFileName = cachedir..'/'..os.date('%Y%m%d', t)..'.zip'
 	local zipArchive = zipArchivesForFileName[zipFileName]
 	if zipArchive then return zipArchive end
-	if not file(zipFileName):exists() then
+	if not path(zipFileName):exists() then
 		assert(downloadDRAPArchive(t))
-		assert(file(zipFileName):exists())
+		assert(path(zipFileName):exists())
 	end
 	zipArchive = Zip(zipFileName)
 	zipArchivesForFileName[zipFileName] = zipArchive
@@ -129,10 +129,10 @@ print('zipArchive', zipArchive)
 	return zipArchive
 end
 
-file'tmp':mkdir()
-assert(file'tmp':isdir())
-for f in file'tmp':dir() do
-	file('tmp/'..f):remove()
+path'tmp':mkdir()
+assert(path'tmp':isdir())
+for f in path'tmp':dir() do
+	path('tmp/'..f):remove()
 end
 
 -- `https://services.swpc.noaa.gov/images/animations/d-rap/global/d-rap/SWX_DRAP20_C_SWPC_20230422142400_GLOBAL.png`
@@ -159,13 +159,13 @@ print('trying zipPath', zipPath)
 	else
 		-- extract to tmp
 		local dstfn = count..'.png'
-		file('tmp/'..dstfn):write((zipPath:read()))
+		path('tmp/'..dstfn):write((zipPath:read()))
 		fs:insert(dstfn)	-- relative to the tmp dir
 	end
 end
 print('found '..(count - failCount)..' of '..count..' files')
 if #fs == 0 then error("can't go any further") end
-file'tmp/input.txt':write(fs:mapi(function(s,i)
+path'tmp/input.txt':write(fs:mapi(function(s,i)
 	return "file '"..s.."'\n"
 		..(i < #fs and 'duration 1\n' or '')
 end):append{

@@ -129,10 +129,11 @@ print('zipArchive', zipArchive)
 	return zipArchive
 end
 
-path'tmp':mkdir()
-assert(path'tmp':isdir())
-for f in path'tmp':dir() do
-	path('tmp/'..f):remove()
+local tmppath = path'tmp'
+tmppath:mkdir()
+assert(tmppath:isdir())
+for f in tmppath:dir() do
+	(tmppath/f):remove()
 end
 
 -- `https://services.swpc.noaa.gov/images/animations/d-rap/global/d-rap/SWX_DRAP20_C_SWPC_20230422142400_GLOBAL.png`

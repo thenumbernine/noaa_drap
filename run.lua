@@ -2,6 +2,7 @@
 local path = require 'ext.path'
 local table = require 'ext.table'
 local Zip = require 'zip'
+local Tar = require 'zip.tar'	-- maybe I should rename the project to 'archive' or something ...
 
 local startTS, endTS = ...
 assert(startTS and endTS, [[
@@ -97,7 +98,7 @@ local function downloadAndCache(filename, url, dontReturnData)
 end
 --]]
 
--- TODO download either, then extract-and-recompress it ... in cachedir/%Y%m%d.zip or .something
+-- TODO download either, then extract-and-recompress it ... in cachedir/%Y%m%d.tar.gz or .something
 local function downloadDRAPArchive(t)
 	local Y = os.date('%Y', t)
 	local m = os.date('%m', t)
@@ -105,10 +106,7 @@ local function downloadDRAPArchive(t)
 	local ts = Y..m..d
 	local filenameWithoutExt = 'SWX_DRAP20_C_SWPC_'..ts
 	local urlWithoutExt = 'https://www.ngdc.noaa.gov/stp/drap/data/'..Y..'/'..m..'/' .. filenameWithoutExt 
-	local found = downloadAndCache('cache/'..ts..'.zip', urlWithoutExt..'.zip', true)
-	if not found then
-		error("this is where I should download the .tar.gz version but I'm too lazy")
-	end
+	local found = downloadAndCache('cache/'..ts..'.tar.gz', urlWithoutExt..'.tar.gz', true)
 	-- now that it's found ... re-zip in the proper place?  or just use as-is with its weird archive-whatever path?
 	return true
 end
@@ -116,15 +114,22 @@ end
 -- TODO instead of a table, just save the last one, since we are iterating through in order
 local zipArchivesForFileName = {}
 local function getZipArchive(t)
-	local zipFileName = cachedir..'/'..os.date('%Y%m%d', t)..'.zip'
-	local zipArchive = zipArchivesForFileName[zipFileName]
+	local zipFileName = path(cachedir)/(os.date('%Y%m%d', t)..'.tar.gz')
+	local zipArchive = zipArchivesForFileName[zipFileName.path]
 	if zipArchive then return zipArchive end
-	if not path(zipFileName):exists() then
+	if not zipFileName:exists() then
 		assert(downloadDRAPArchive(t))
-		assert(path(zipFileName):exists())
+		assert(zipFileName:exists())
 	end
-	zipArchive = Zip(zipFileName)
-	zipArchivesForFileName[zipFileName] = zipArchive
+	local ext = select(2, zipFileName:getExt())
+	if ext == 'zip' then
+		zipArchive = Zip(zipFileName.path)
+	elseif ext == 'tar' then
+		zipArchive = Tar(zipFileName.path)
+	else
+		error('unknown extension '..tostring(ext))
+	end
+	zipArchivesForFileName[zipFileName.path] = zipArchive
 print('zipArchive', zipArchive)
 	return zipArchive
 end

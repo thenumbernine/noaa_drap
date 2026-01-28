@@ -1,7 +1,12 @@
+--------------------------------------------
+-- generated with dist/build-distinfo.rua --
+--------------------------------------------
+
 name = "noaa_drap"
 files = {
-	["README.md"] = "noaa_drap/README.md",
-	["run.lua"] = "noaa_drap/run.lua",
+	"README.md",
+	"distinfo",
+	"run.lua",
 }
 deps = {
 	"ext",

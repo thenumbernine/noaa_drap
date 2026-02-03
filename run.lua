@@ -1,6 +1,7 @@
 #!/usr/bin/env luajit
 local path = require 'ext.path'
 local table = require 'ext.table'
+local URL = require 'url'
 local Zip = require 'zip'
 local Tar = require 'zip.tar'	-- maybe I should rename the project to 'archive' or something ...
 
@@ -104,9 +105,15 @@ local function downloadDRAPArchive(t)
 	local m = os.date('%m', t)
 	local d = os.date('%d', t)
 	local ts = Y..m..d
-	local filenameWithoutExt = 'SWX_DRAP20_C_SWPC_'..ts
-	local urlWithoutExt = 'https://www.ngdc.noaa.gov/stp/drap/data/'..Y..'/'..m..'/' .. filenameWithoutExt 
-	local found = downloadAndCache('cache/'..ts..'.tar.gz', urlWithoutExt..'.tar.gz', true)
+	local found = downloadAndCache(
+		'cache/'..ts..'.tar.gz',
+		URL{
+			scheme = 'https',
+			host = 'www.ngdc.noaa.gov',
+			path = tostring(path'stp/drap/data'/Y/m/('SWX_DRAP20_C_SWPC_'..ts..'.tar.gz')),
+		}:tostring(),
+		true
+	)
 	-- now that it's found ... re-zip in the proper place?  or just use as-is with its weird archive-whatever path?
 	return true
 end

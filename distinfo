@@ -10,5 +10,6 @@ files = {
 }
 deps = {
 	"ext",
+	'url',
 	"zip",
 }
